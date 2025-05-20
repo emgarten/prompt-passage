@@ -33,7 +33,7 @@ async def _shutdown() -> None:
 
 
 @app.post("/{model}/chat/completions")
-async def chat_proxy(model: str, request: Request):  # type: ignore[override]
+async def chat_proxy(model: str, request: Request) -> Response:
     if model not in _model_map:
         return Response(
             content='{"error": "Unknown model"}',
@@ -64,7 +64,8 @@ async def chat_proxy(model: str, request: Request):  # type: ignore[override]
     else:
         body = body_bytes
 
-    upstream = await _forwarder.forward(endpoint, body, out_headers)  # type: ignore[arg-type]
+    assert _forwarder is not None
+    upstream = await _forwarder.forward(endpoint, body, out_headers)
 
     return Response(
         content=upstream.content,
@@ -75,7 +76,8 @@ async def chat_proxy(model: str, request: Request):  # type: ignore[override]
 
 
 @app.exception_handler(httpx.RequestError)
-async def _httpx_error(_, exc: httpx.RequestError):  # noqa: D401, ANN001
+async def _httpx_error(_: Request, exc: httpx.RequestError) -> Response:
+    """Return a generic 502 response on httpx failures."""
     return Response(
         content='{"error": "Upstream failure"}',
         media_type="application/json",
