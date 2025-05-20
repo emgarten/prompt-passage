@@ -1,0 +1,9 @@
+-r requirements.in
+black
+ruff
+invoke
+mypy
+pip-tools
+pytest-httpx
+pytest
+types-PyYAML
