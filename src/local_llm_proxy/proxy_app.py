@@ -6,6 +6,7 @@ import httpx
 from fastapi import FastAPI, Request, Response, status
 import os
 from pathlib import Path
+import json
 
 from .config import load_config, ModelCfg
 from .forwarder import Forwarder
@@ -25,6 +26,12 @@ async def _startup() -> None:
     _forwarder = Forwarder(_model_map)
 
 
+@app.on_event("shutdown")
+async def _shutdown() -> None:
+    if _forwarder:
+        await _forwarder.aclose()
+
+
 @app.post("/{model}/chat/completions")
 async def chat_proxy(model: str, request: Request):  # type: ignore[override]
     if model not in _model_map:
@@ -34,8 +41,30 @@ async def chat_proxy(model: str, request: Request):  # type: ignore[override]
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    body = await request.body()
-    upstream = await _forwarder.forward(model, body, dict(request.headers))  # type: ignore[arg-type]
+    cfg = _model_map[model]
+    token = os.getenv(cfg.envKey)
+    if not token:
+        raise ValueError(f"Environment variable '{cfg.envKey}' not set or empty")
+
+    endpoint = str(cfg.endpoint)
+
+    out_headers = {}
+    out_headers["Content-Type"] = "application/json"
+    out_headers["Authorization"] = f"Bearer {token}"
+
+    body_bytes = await request.body()
+    if body_bytes:
+        try:
+            # Override the model to match the config
+            body_json = json.loads(body_bytes.decode("utf-8"))
+            body_json["model"] = model
+            body = json.dumps(body_json).encode("utf-8")
+        except json.JSONDecodeError:
+            body = body_bytes
+    else:
+        body = body_bytes
+
+    upstream = await _forwarder.forward(endpoint, body, out_headers)  # type: ignore[arg-type]
 
     return Response(
         content=upstream.content,
