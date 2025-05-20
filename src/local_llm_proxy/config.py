@@ -12,7 +12,13 @@ import os
 from typing import Dict
 
 import yaml
-from pydantic import BaseModel, HttpUrl, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    HttpUrl,
+    ValidationError,
+    field_validator,
+)
+from typing import Any
 
 
 class ModelCfg(BaseModel):
@@ -31,10 +37,13 @@ class ModelCfg(BaseModel):
 
     @field_validator("token", mode="before")
     @classmethod
-    def _resolve_token(cls, v, values):  # noqa: ANN001
+    def _resolve_token(cls, v: str | None, info: Any) -> str:
+        """Resolve the bearer token from the environment if not provided."""
         if v is not None:
             return v
-        key = values.get("envKey")
+        key = getattr(info, "data", {}).get("envKey")
+        if not key:
+            raise ValueError("envKey missing when resolving token")
         token = os.getenv(key)
         if not token:
             raise ValueError(f"Environment variable '{key}' not set or empty")
@@ -57,7 +66,7 @@ def load_config(path: str | Path = "models.yaml") -> Dict[str, ModelCfg]:
     models: Dict[str, ModelCfg] = {}
     for name, cfg in data["models"].items():
         try:
-            models[name] = ModelCfg(**cfg)  # type: ignore[arg-type]
+            models[name] = ModelCfg(**cfg)
         except ValidationError as exc:
             raise ValueError(f"Invalid config for model '{name}': {exc}") from exc
 
