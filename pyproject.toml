@@ -17,7 +17,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black==25.1.0",
-    "invoke==2.2.0",
+    "debugpy>=1.8.14",
+    "ipykernel>=6.29.5",
     "mypy>=1.15.0",
     "pytest==8.3.5",
     "pytest-httpx>=0.35.0",
