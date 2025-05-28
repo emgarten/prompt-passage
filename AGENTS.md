@@ -1,8 +1,17 @@
+## Environment setup
+
+This project uses uv and a makefile
+Execute `make install` to setup the virtual environment
+
 ## Testing
 
-Execute `invoke test` to run tests
+Execute `make test` to run tests
 
 ## Linting
 
-Execute `invoke lint` to run linting and formatting tools.
+Execute `make check` to run linting and formatting tools.
 All code changes MUST run linting and formatting tools before committing the changes.
+
+## Build
+
+Execute `make build` to build the wheel file.

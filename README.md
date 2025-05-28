@@ -12,3 +12,10 @@ models:
     envKey: "OPENAI_API_KEY"
 ```
 
+## Dev environment setup
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+make install
+```
