@@ -22,7 +22,8 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6   # caches uv automatically when the job re-runs
         with:
-          cache: true                 # reuse the uv package cache between workflow runs
+          enable-cache: true
+          version: "0.7.8"
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
