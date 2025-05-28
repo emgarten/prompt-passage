@@ -14,6 +14,17 @@ check: ## Run code quality tools
 	@echo "Static type checking: Running mypy"
 	@uv run mypy src tests
 
+.PHONY: check-no-fix
+check-no-fix: ## Run code quality tools without fixing issues
+	@echo "Checking lock file consistency with 'pyproject.toml'"
+	@uv lock --check --offline
+	@echo "Running ruff to lint code"
+	@uv run ruff check src tests
+	@echo "Running black to format code"
+	@uv run black src tests --check
+	@echo "Static type checking: Running mypy"
+	@uv run mypy src tests
+
 .PHONY: test
 test: ## Test the code with pytest
 	@echo "Testing code: Running pytest"
