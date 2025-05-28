@@ -1,6 +1,6 @@
 # .github/workflows/python-app.yml
 # CI workflow that installs uv & make, then builds, lints, tests and packages
-name: Python application
+name: Build & Test
 
 on:
   push:
