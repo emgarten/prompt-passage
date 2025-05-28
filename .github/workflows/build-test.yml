@@ -1,0 +1,46 @@
+# .github/workflows/python-app.yml
+# CI workflow that installs uv & make, then builds, lints, tests and packages
+name: Python application
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install uv (fast dependency manager) and add it to PATH
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6   # caches uv automatically when the job re-runs
+        with:
+          cache: true                 # reuse the uv package cache between workflow runs
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          make install
+
+      - name: Lint and type check
+        run: |
+          make check-no-fix
+
+      - name: Test with pytest
+        run: |
+          make test
+
+      - name: Build
+        run: |
+          make build
