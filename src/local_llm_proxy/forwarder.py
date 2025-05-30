@@ -6,7 +6,7 @@ from typing import Mapping
 
 import httpx
 
-from .config import ModelCfg
+from .config import ProviderCfg
 
 
 class Forwarder:
@@ -14,7 +14,7 @@ class Forwarder:
 
     _TIMEOUT = httpx.Timeout(600.0)  # 10 minutes
 
-    def __init__(self, model_map: Mapping[str, ModelCfg]):
+    def __init__(self, model_map: Mapping[str, ProviderCfg]):
         self._model_map = model_map
         self._client = httpx.AsyncClient(timeout=self._TIMEOUT)
 

@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from local_llm_proxy.config import load_config, parse_config
+from local_llm_proxy.auth_providers import ApiKeyProvider, AzureCliProvider
 
 
 def test_load_config_file_not_found(tmp_path: Path) -> None:
@@ -78,4 +79,22 @@ def test_parse_config_azcli_returns_none() -> None:
         }
     }
     cfg = parse_config(raw)
-    assert cfg.providers["p1"].auth.api_key is None
+    prov = cfg.providers["p1"].auth
+    assert prov.api_key is None
+    assert isinstance(prov.provider, AzureCliProvider)
+
+
+def test_parse_config_apikey_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENV", "x")
+    raw = {
+        "providers": {
+            "p1": {
+                "endpoint": "https://example.com",
+                "model": "m",
+                "auth": {"type": "apikey", "envKey": "ENV"},
+            }
+        }
+    }
+    cfg = parse_config(raw)
+    auth = cfg.providers["p1"].auth
+    assert isinstance(auth.provider, ApiKeyProvider)
