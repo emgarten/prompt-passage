@@ -1,76 +1,140 @@
 """Configuration loader for the proxy service.
 
-Reads `models.yaml`, validates its structure, and resolves the bearer tokens
-for every model from environment variables specified by the `envKey` field.
-The result is an immutable mapping that other modules can import at runtime.
+Reads a YAML configuration file (default: `models.yaml`), validates its structure
+according to the defined schema (including `providers`, `auth` settings, etc.),
+and resolves API keys from environment variables if specified.
+The result is an immutable `RootConfig` object containing the parsed configuration.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 import os
-from typing import Dict
+from pathlib import Path
+from typing import Dict, Literal, Any
 
 import yaml
 from pydantic import (
     BaseModel,
-    HttpUrl,
     ValidationError,
     field_validator,
+    model_validator,
+    PrivateAttr,
 )
-from typing import Any
 
 
-class ModelCfg(BaseModel):
-    """Run-time configuration for a single model entry."""
+class AuthConfig(BaseModel):
+    """Authentication configuration for a provider."""
 
-    endpoint: HttpUrl
-    envKey: str
-    token: str | None = None  # populated after env lookup
+    type: Literal["apikey", "azcli"]
+    envKey: str | None = None
+    key: str | None = None
+    _resolved_api_key: str | None = PrivateAttr(None)
 
-    @field_validator("envKey")
+    @model_validator(mode="after")
+    def _resolve_and_validate_auth(self) -> "AuthConfig":
+        if self.type == "apikey":
+            if self.key is not None:
+                self._resolved_api_key = self.key
+            elif self.envKey is not None:
+                if not self.envKey:  # Ensure envKey is not an empty string
+                    raise ValueError("'envKey' for apikey auth must not be an empty string.")
+                token_from_env = os.getenv(self.envKey)
+                if not token_from_env:
+                    raise ValueError(f"Environment variable '{self.envKey}' not set or empty for apikey auth")
+                self._resolved_api_key = token_from_env
+            else:
+                raise ValueError("For apikey auth, either 'key' or 'envKey' must be provided.")
+        elif self.type == "azcli":
+            # For 'azcli', the token is expected to be handled externally (e.g., via Azure CLI login).
+            # This configuration model does not resolve a token for 'azcli'.
+            # Warn if key/envKey are provided for azcli, as they are not used by this model.
+            if self.key is not None or self.envKey is not None:
+                # Consider logging a warning here if a logger is available
+                # print("Warning: 'key' or 'envKey' are provided for 'azcli' auth type but will not be used for API key resolution by this model.")
+                pass
+        return self
+
+    @property
+    def api_key(self) -> str | None:
+        """
+        Returns the resolved API key if auth type is 'apikey'.
+        Returns None for 'azcli' as this model doesn't handle its token.
+        """
+        if self.type == "apikey":
+            # This should be set by _resolve_and_validate_auth if type is apikey
+            if self._resolved_api_key is None:
+                raise ValueError(
+                    "API key for 'apikey' auth was not resolved. This indicates an issue in validation logic."
+                )
+            return self._resolved_api_key
+        return None
+
+
+class ProviderCfg(BaseModel):
+    """Run-time configuration for a single provider entry."""
+
+    endpoint: str  # Endpoint URL, potentially with placeholders like {service}
+    model: str  # Name of the LLM model, e.g., "o4-mini"
+    auth: AuthConfig
+
+
+class DefaultsCfg(BaseModel):
+    """Default settings, like the default provider name."""
+
+    provider: str
+
+
+class RootConfig(BaseModel):
+    """Root configuration model."""
+
+    defaults: DefaultsCfg | None = None
+    providers: Dict[str, ProviderCfg]
+
+    @field_validator("providers")
     @classmethod
-    def _not_empty(cls, v: str) -> str:
+    def _validate_providers_not_empty(cls, v: Dict[str, ProviderCfg]) -> Dict[str, ProviderCfg]:
         if not v:
-            raise ValueError("envKey must not be empty")
+            raise ValueError("The 'providers' mapping in the configuration cannot be empty.")
         return v
 
-    @field_validator("token", mode="before")
-    @classmethod
-    def _resolve_token(cls, v: str | None, info: Any) -> str:
-        """Resolve the bearer token from the environment if not provided."""
-        if v is not None:
-            return v
-        key = getattr(info, "data", {}).get("envKey")
-        if not key:
-            raise ValueError("envKey missing when resolving token")
-        token = os.getenv(key)
-        if not token:
-            raise ValueError(f"Environment variable '{key}' not set or empty")
-        return token
+    @model_validator(mode="after")
+    def _validate_default_provider_exists(self) -> "RootConfig":
+        if self.defaults and self.defaults.provider:
+            if self.defaults.provider not in self.providers:
+                raise ValueError(f"Default provider '{self.defaults.provider}' not found in the 'providers' list.")
+        return self
 
 
-def load_config(path: str | Path = "models.yaml") -> Dict[str, ModelCfg]:
-    """Parse *path* and return a mapping of model name → :class:`ModelCfg`."""
-
+def load_config(path: str | Path = "models.yaml") -> RootConfig:
+    """
+    Parse the YAML configuration file at *path* and return a `RootConfig` object.
+    """
     path = Path(path)
     if not path.exists():
-        raise FileNotFoundError(path)
+        raise FileNotFoundError(f"Configuration file not found: {path}")
 
     with path.open("rt", encoding="utf-8") as fp:
-        data = yaml.safe_load(fp) or {}
+        raw_data = yaml.safe_load(fp)
 
-    if not isinstance(data, dict) or "models" not in data:
-        raise ValueError("models.yaml must contain a top-level 'models' mapping")
+    if not raw_data:
+        raise ValueError(f"Configuration file is empty or invalid: {path}")
 
-    models: Dict[str, ModelCfg] = {}
-    for name, cfg in data["models"].items():
-        try:
-            models[name] = ModelCfg(**cfg)
-        except ValidationError as exc:
-            raise ValueError(f"Invalid config for model '{name}': {exc}") from exc
+    try:
+        config = parse_config(raw_data)
+    except ValidationError as exc:
+        # Provide a more context-rich error message if possible
+        # For example, by iterating through exc.errors()
+        error_details = "\n".join(
+            f"  - {err['loc']}: {err['msg']} (input was {err.get('input')})" for err in exc.errors()
+        )
+        raise ValueError(f"Invalid configuration in '{path}':\n{error_details}") from exc
 
-    if not models:
-        raise ValueError("No models configured in models.yaml")
+    return config
 
-    return models
+
+def parse_config(raw_data: Any) -> RootConfig:
+    """
+    Parse a raw configuration dictionary and return a `RootConfig` object.
+    """
+
+    return RootConfig(**raw_data)
