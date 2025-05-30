@@ -21,6 +21,8 @@ from pydantic import (
     PrivateAttr,
 )
 
+from .auth_providers import ApiKeyProvider, AzureCliProvider, TokenProvider
+
 
 class AuthConfig(BaseModel):
     """Authentication configuration for a provider."""
@@ -29,6 +31,7 @@ class AuthConfig(BaseModel):
     envKey: str | None = None
     key: str | None = None
     _resolved_api_key: str | None = PrivateAttr(None)
+    _token_provider: TokenProvider | None = PrivateAttr(None)
 
     @model_validator(mode="after")
     def _resolve_and_validate_auth(self) -> "AuthConfig":
@@ -52,6 +55,8 @@ class AuthConfig(BaseModel):
                 # Consider logging a warning here if a logger is available
                 # print("Warning: 'key' or 'envKey' are provided for 'azcli' auth type but will not be used for API key resolution by this model.")
                 pass
+        # Instantiate token provider after validation
+        self._token_provider = self._build_provider()
         return self
 
     @property
@@ -69,6 +74,17 @@ class AuthConfig(BaseModel):
             return self._resolved_api_key
         return None
 
+    def _build_provider(self) -> TokenProvider:
+        if self.type == "apikey":
+            assert self._resolved_api_key is not None
+            return ApiKeyProvider(self._resolved_api_key)
+        return AzureCliProvider()
+
+    @property
+    def provider(self) -> TokenProvider:
+        assert self._token_provider is not None
+        return self._token_provider
+
 
 class ProviderCfg(BaseModel):
     """Run-time configuration for a single provider entry."""
@@ -76,6 +92,17 @@ class ProviderCfg(BaseModel):
     endpoint: str  # Endpoint URL, potentially with placeholders like {service}
     model: str  # Name of the LLM model, e.g., "o4-mini"
     auth: AuthConfig
+    _provider: TokenProvider | None = PrivateAttr(None)
+
+    @model_validator(mode="after")
+    def _init_provider(self) -> "ProviderCfg":
+        self._provider = self.auth.provider
+        return self
+
+    @property
+    def token_provider(self) -> TokenProvider:
+        assert self._provider is not None
+        return self._provider
 
 
 class DefaultsCfg(BaseModel):
