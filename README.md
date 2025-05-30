@@ -28,6 +28,9 @@ providers:
       type: azcli
 ```
 
+When using `azcli` authentication the proxy retrieves a bearer token from the
+Azure CLI credentials (for example acquired via `az login`).
+
 ## Dev environment setup
 
 ```bash

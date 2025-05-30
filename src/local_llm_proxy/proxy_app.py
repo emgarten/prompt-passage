@@ -4,11 +4,10 @@ from typing import Dict
 
 import httpx
 from fastapi import FastAPI, Request, Response, status
-import os
 from pathlib import Path
 import json
 
-from .config import load_config, ModelCfg
+from .config import build_model_map, load_config, ModelCfg
 from .forwarder import Forwarder
 
 app = FastAPI(title="OpenAI Chat Proxy", version="1.0.0")
@@ -22,7 +21,8 @@ async def _startup() -> None:
     global _model_map, _forwarder  # noqa: PLW0603
 
     config_path = Path.home() / ".local_llm_proxy" / "config.yaml"
-    _model_map = load_config(config_path)
+    config = load_config(config_path)
+    _model_map = build_model_map(config)
     _forwarder = Forwarder(_model_map)
 
 
@@ -30,6 +30,8 @@ async def _startup() -> None:
 async def _shutdown() -> None:
     if _forwarder:
         await _forwarder.aclose()
+    for cfg in _model_map.values():
+        await cfg.token_provider.aclose()
 
 
 @app.post("/{model}/chat/completions")
@@ -42,9 +44,7 @@ async def chat_proxy(model: str, request: Request) -> Response:
         )
 
     cfg = _model_map[model]
-    token = os.getenv(cfg.envKey)
-    if not token:
-        raise ValueError(f"Environment variable '{cfg.envKey}' not set or empty")
+    token = await cfg.token_provider.get_token()
 
     endpoint = str(cfg.endpoint)
 

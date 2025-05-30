@@ -9,6 +9,7 @@ The result is an immutable `RootConfig` object containing the parsed configurati
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Literal, Any
 
@@ -20,6 +21,17 @@ from pydantic import (
     model_validator,
     PrivateAttr,
 )
+
+from .token_providers import ApiKeyProvider, AzCliTokenProvider, TokenProvider
+
+
+@dataclass(slots=True)
+class ModelCfg:
+    """Resolved provider configuration used at runtime."""
+
+    endpoint: str
+    model: str
+    token_provider: TokenProvider
 
 
 class AuthConfig(BaseModel):
@@ -68,6 +80,15 @@ class AuthConfig(BaseModel):
                 )
             return self._resolved_api_key
         return None
+
+    def create_token_provider(self) -> TokenProvider:
+        """Instantiate the appropriate token provider for this auth config."""
+        if self.type == "apikey":
+            assert self.api_key is not None
+            return ApiKeyProvider(self.api_key)
+        if self.type == "azcli":
+            return AzCliTokenProvider()
+        raise ValueError(f"Unsupported auth type: {self.type}")
 
 
 class ProviderCfg(BaseModel):
@@ -138,3 +159,17 @@ def parse_config(raw_data: Any) -> RootConfig:
     """
 
     return RootConfig(**raw_data)
+
+
+def build_model_map(config: RootConfig) -> Dict[str, ModelCfg]:
+    """Convert a :class:`RootConfig` into a runtime model map."""
+
+    result: Dict[str, ModelCfg] = {}
+    for name, provider in config.providers.items():
+        token_provider = provider.auth.create_token_provider()
+        result[name] = ModelCfg(
+            endpoint=provider.endpoint,
+            model=provider.model,
+            token_provider=token_provider,
+        )
+    return result
