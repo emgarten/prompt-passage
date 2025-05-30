@@ -3,12 +3,33 @@ from __future__ import annotations
 from typing import Dict
 
 import httpx
+import logging
+from uvicorn.logging import DefaultFormatter
 from fastapi import FastAPI, Request, Response, status
 from pathlib import Path
 import json
 
 from .config import load_config, ProviderCfg
 from .forwarder import Forwarder
+
+_handler = logging.StreamHandler()
+_handler.setFormatter(DefaultFormatter(fmt="%(levelprefix)s %(message)s", use_colors=True))
+_root = logging.getLogger()
+_root.handlers.clear()
+_root.addHandler(_handler)
+_root.setLevel(logging.INFO)
+
+logger = logging.getLogger(__name__)
+
+
+def _pretty(data: bytes) -> str:
+    """Return a prettified string representation of *data* if it's JSON."""
+    try:
+        obj = json.loads(data.decode("utf-8"))
+    except Exception:
+        return data.decode("utf-8", errors="replace")
+    return json.dumps(obj, indent=2, ensure_ascii=False)
+
 
 app = FastAPI(title="OpenAI Chat Proxy", version="1.0.0")
 
@@ -61,8 +82,24 @@ async def chat_proxy(model: str, request: Request) -> Response:
     else:
         body = body_bytes
 
+    logger.info("Forwarding request to %s", endpoint)
+    logger.info("Outgoing body:\n%s", _pretty(body))
+
     assert _forwarder is not None
-    upstream = await _forwarder.forward(endpoint, body, out_headers)
+    try:
+        upstream = await _forwarder.forward(endpoint, body, out_headers)
+    except httpx.RequestError as exc:
+        logger.exception("Failed to reach upstream: %s", exc)
+        raise
+
+    resp_pretty = _pretty(upstream.content)
+    logger.info("Upstream response (%s):\n%s", upstream.status_code, resp_pretty)
+    try:
+        usage = json.loads(upstream.content.decode("utf-8")).get("usage")
+    except Exception:
+        usage = None
+    if usage is not None:
+        logger.info("Usage results: %s", usage)
 
     return Response(
         content=upstream.content,
@@ -75,6 +112,7 @@ async def chat_proxy(model: str, request: Request) -> Response:
 @app.exception_handler(httpx.RequestError)
 async def _httpx_error(_: Request, exc: httpx.RequestError) -> Response:
     """Return a generic 502 response on httpx failures."""
+    logger.error("Upstream request error: %s", exc)
     return Response(
         content='{"error": "Upstream failure"}',
         media_type="application/json",
