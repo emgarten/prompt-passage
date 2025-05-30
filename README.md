@@ -24,9 +24,12 @@ providers:
   azure-o4-mini-azcli:
     endpoint: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"
     model: o4-mini
-    auth:
-      type: azcli
+      auth:
+        type: azcli
 ```
+
+When using `azcli` authentication the proxy retrieves a bearer token from the
+Azure CLI credentials (for example acquired via `az login`).
 
 ## Dev environment setup
 
