@@ -56,7 +56,7 @@ def test_chat_proxy_success(monkeypatch: pytest.MonkeyPatch, create_config: Path
 
     with TestClient(proxy_app.app) as client:
         resp = client.post(
-            "/test-model/chat/completions",
+            "/provider/test-model/chat/completions",
             json={"messages": [{"role": "user", "content": "hi"}]},
         )
         assert resp.status_code == 200
