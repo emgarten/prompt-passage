@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, AsyncIterator
 
 import httpx
 import logging
 from uvicorn.logging import DefaultFormatter
 from fastapi import FastAPI, Request, Response, status
+from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
 from pathlib import Path
 import json
 
@@ -76,11 +78,13 @@ async def chat_proxy(provider: str, request: Request) -> Response:
         out_headers["Authorization"] = f"Bearer {token}"
 
     body_bytes = await request.body()
+    stream = False
     if body_bytes:
         try:
             # Override the model to match the config
             body_json = json.loads(body_bytes.decode("utf-8"))
             body_json["model"] = cfg.model
+            stream = bool(body_json.get("stream", False))
             body = json.dumps(body_json).encode("utf-8")
         except json.JSONDecodeError:
             body = body_bytes
@@ -92,26 +96,48 @@ async def chat_proxy(provider: str, request: Request) -> Response:
 
     assert _forwarder is not None
     try:
-        upstream = await _forwarder.forward(endpoint, body, out_headers)
+        if stream:
+            upstream = await _forwarder.stream(endpoint, body, out_headers)
+        else:
+            upstream = await _forwarder.forward(endpoint, body, out_headers)
     except httpx.RequestError as exc:
         logger.exception("Failed to reach upstream: %s", exc)
         raise
 
-    resp_pretty = _pretty(upstream.content)
-    logger.info("Upstream response (%s):\n%s", upstream.status_code, resp_pretty)
-    try:
-        usage = json.loads(upstream.content.decode("utf-8")).get("usage")
-    except Exception:
-        usage = None
-    if usage is not None:
-        logger.info("Usage results: %s", usage)
+    if stream:
+        logger.info("Streaming response with status %s", upstream.status_code)
 
-    return Response(
-        content=upstream.content,
-        status_code=upstream.status_code,
-        headers=dict(upstream.headers),
-        media_type=upstream.headers.get("content-type"),
-    )
+        async def _aiter() -> AsyncIterator[bytes]:
+            async for chunk in upstream.aiter_raw():
+                yield chunk
+
+        return StreamingResponse(
+            _aiter(),
+            status_code=upstream.status_code,
+            headers=dict(upstream.headers),
+            media_type=upstream.headers.get("content-type"),
+            background=BackgroundTask(upstream.aclose),
+        )
+    else:
+        resp_pretty = _pretty(upstream.content)
+        logger.info(
+            "Upstream response (%s):\n%s",
+            upstream.status_code,
+            resp_pretty,
+        )
+        try:
+            usage = json.loads(upstream.content.decode("utf-8")).get("usage")
+        except Exception:
+            usage = None
+        if usage is not None:
+            logger.info("Usage results: %s", usage)
+
+        return Response(
+            content=upstream.content,
+            status_code=upstream.status_code,
+            headers=dict(upstream.headers),
+            media_type=upstream.headers.get("content-type"),
+        )
 
 
 @app.exception_handler(httpx.RequestError)
