@@ -9,6 +9,19 @@ from pytest_httpx import HTTPXMock
 import yaml
 
 
+class GeneratorStream(httpx.AsyncByteStream):
+    def __init__(self, gen: typing.AsyncIterator[bytes]) -> None:
+        self._gen = gen
+
+    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+        async for chunk in self._gen:
+            yield chunk
+
+    async def aclose(self) -> None:
+        if hasattr(self._gen, "aclose"):
+            await self._gen.aclose()
+
+
 @pytest.fixture()
 def create_config(tmp_path: Path) -> Path:
     cfg_dir = tmp_path / ".local_llm_proxy"
@@ -123,7 +136,7 @@ def test_chat_proxy_stream(monkeypatch: pytest.MonkeyPatch, create_config: Path,
         yield b'data: {"id":1}\n\n'
         yield b"data: [DONE]\n\n"
 
-    stream = httpx._content.AsyncIteratorByteStream(gen())
+    stream = GeneratorStream(gen())
     httpx_mock.add_response(
         url="https://mock.upstream/chat/completions",
         headers={"content-type": "text/event-stream"},
