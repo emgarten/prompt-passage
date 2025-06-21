@@ -40,7 +40,24 @@ class Forwarder:
 
         resp = await _send()
         if resp.status_code >= 500:
-            resp.close()
+            await resp.aclose()
             resp = await _send()
+
+        return resp
+
+    async def stream(
+        self,
+        endpoint: str,
+        body: bytes,
+        headers: Mapping[str, str],
+    ) -> httpx.Response:
+        """Send a POST request and return a streaming ``httpx.Response``."""
+
+        request = self._client.build_request("POST", endpoint, content=body, headers=headers)
+
+        resp = await self._client.send(request, stream=True)
+        if resp.status_code >= 500:
+            await resp.aclose()
+            resp = await self._client.send(request, stream=True)
 
         return resp

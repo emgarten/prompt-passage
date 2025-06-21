@@ -21,7 +21,7 @@ class ChatCompletionRequest(BaseModel):
     messages: List[ChatMessage]
     temperature: Optional[float] = 1.0
     max_tokens: Optional[int] = None
-    stream: bool = False  # must be False; proxy does not support streaming
+    stream: bool = False  # if True, responses will be streamed
 
 
 class ChatChoice(BaseModel):
