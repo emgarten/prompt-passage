@@ -40,7 +40,7 @@ class Forwarder:
 
         resp = await _send()
         if resp.status_code >= 500:
-            resp.close()
+            await resp.aclose()
             resp = await _send()
 
         return resp

@@ -152,3 +152,80 @@ def test_chat_proxy_stream(monkeypatch: pytest.MonkeyPatch, create_config: Path,
             chunks = list(resp.iter_bytes())
 
     assert b"data: {" in chunks[0]
+
+
+def test_chat_proxy_unknown_provider(monkeypatch: pytest.MonkeyPatch, create_config: Path) -> None:
+    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
+
+    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+
+    with TestClient(proxy_app.app) as client:
+        resp = client.post(
+            "/provider/missing/chat/completions",
+            json={"messages": [{"role": "user", "content": "hi"}]},
+        )
+        assert resp.status_code == 404
+        assert resp.json() == {"error": "Unknown provider"}
+
+
+def test_chat_proxy_upstream_500(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
+    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
+
+    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+
+    httpx_mock.add_response(status_code=500, json={"err": 1})
+    httpx_mock.add_response(status_code=500, json={"err": 1})
+
+    with TestClient(proxy_app.app) as client:
+        resp = client.post(
+            "/provider/test-model/chat/completions",
+            json={"messages": [{"role": "user", "content": "hi"}]},
+        )
+        assert resp.status_code == 500
+
+
+def test_chat_proxy_stream_upstream_error(
+    monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock
+) -> None:
+    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
+
+    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+
+    httpx_mock.add_exception(httpx.ConnectError("fail"))
+
+    with TestClient(proxy_app.app) as client:
+        resp = client.post(
+            "/provider/test-model/chat/completions",
+            json={"messages": [{"role": "user", "content": "hi"}], "stream": True},
+        )
+        assert resp.status_code == 502
+        assert resp.json() == {"error": "Upstream failure"}
+
+
+def test_chat_proxy_stream_500(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
+    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
+
+    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+
+    def make_stream() -> GeneratorStream:
+        async def gen() -> typing.AsyncIterator[bytes]:
+            yield b"oops"
+
+        return GeneratorStream(gen())
+
+    httpx_mock.add_response(status_code=500, headers={"content-type": "text/event-stream"}, stream=make_stream())
+    httpx_mock.add_response(status_code=500, headers={"content-type": "text/event-stream"}, stream=make_stream())
+
+    with TestClient(proxy_app.app) as client:
+        with client.stream(
+            "POST",
+            "/provider/test-model/chat/completions",
+            json={"messages": [{"role": "user", "content": "hi"}], "stream": True},
+        ) as resp:
+            list(resp.iter_bytes())
+
+        assert resp.status_code == 500
