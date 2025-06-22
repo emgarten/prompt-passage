@@ -36,14 +36,17 @@ app = FastAPI(title="Prompt Passage", version="1.0.0")
 
 _provider_map: Dict[str, ProviderCfg] = {}
 _forwarder: Forwarder | None = None
+_service_auth_key: str | None = None
 
 
 @app.on_event("startup")
 async def _startup() -> None:
-    global _provider_map, _forwarder  # noqa: PLW0603
+    global _provider_map, _forwarder, _service_auth_key  # noqa: PLW0603
 
     config_path = default_config_path()
-    _provider_map = load_config(config_path).providers
+    cfg = load_config(config_path)
+    _provider_map = cfg.providers
+    _service_auth_key = cfg.service.auth.key if cfg.service and cfg.service.auth else None
     _forwarder = Forwarder(_provider_map)
 
     logger.info("Available providers:")
@@ -59,6 +62,13 @@ async def _shutdown() -> None:
 
 @app.post("/provider/{provider}/chat/completions")
 async def chat_proxy(provider: str, request: Request) -> Response:
+    if _service_auth_key is not None:
+        if request.headers.get("Authorization") != f"Bearer {_service_auth_key}":
+            return Response(
+                content='{"error": "Unauthorized"}',
+                media_type="application/json",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
     if provider not in _provider_map:
         return Response(
             content='{"error": "Unknown provider"}',
