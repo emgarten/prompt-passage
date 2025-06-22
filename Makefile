@@ -48,7 +48,7 @@ publish: ## Publish a release to PyPI
 .PHONY: run
 run: ## Run the application
 	@echo "Running the application"
-	@uv run uvicorn src.local_llm_proxy.proxy_app:app --reload --host 0.0.0.0 --port 8000
+	@uv run uvicorn src.prompt_passage.proxy_app:app --reload --host 0.0.0.0 --port 8095
 
 .PHONY: help
 help:

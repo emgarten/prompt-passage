@@ -43,7 +43,7 @@ _forwarder: Forwarder | None = None
 async def _startup() -> None:
     global _provider_map, _forwarder  # noqa: PLW0603
 
-    config_path = Path.home() / ".local_llm_proxy" / "config.yaml"
+    config_path = Path.home() / ".prompt_passage" / "config.yaml"
     _provider_map = load_config(config_path).providers
     _forwarder = Forwarder(_provider_map)
 

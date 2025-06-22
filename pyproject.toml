@@ -1,7 +1,7 @@
 [project]
-name = "local-llm-proxy"
-version = "0.1.0"
-description = "A local proxy for LLMs, providing a unified interface for multiple models."
+name = "prompt-passage"
+version = "0.0.1"
+description = "A local proxy for LLMs, providing a unified interface for multiple models and support for identity based authentication."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -23,6 +23,7 @@ dev = [
     "pytest==8.3.5",
     "pytest-httpx>=0.35.0",
     "ruff==0.11.10",
+    "twine>=6.1.0",
     "types-pyyaml>=6.0.12.20250516",
 ]
 
@@ -45,5 +46,12 @@ testpaths = [
 ]
 pythonpath = [
   "src",
-  "src/local_llm_proxy"
+  "src/prompt_passage"
 ]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+llm-proxy = "src.prompt_passage.cli:main"
