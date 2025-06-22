@@ -6,8 +6,7 @@ Proxy local LLM calls to Azure
 ## Example config
 
 ```yaml
-defaults:
-  provider: azure-o4-mini-env
+port: 8095
 providers:
   azure-o4-mini-env:
     endpoint: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"

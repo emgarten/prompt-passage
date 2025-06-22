@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from local_llm_proxy.config import load_config, parse_config
-from local_llm_proxy.auth_providers import ApiKeyProvider, AzureCliProvider
+from prompt_passage.config import load_config, parse_config
+from prompt_passage.auth_providers import ApiKeyProvider, AzureCliProvider
 
 
 def test_load_config_file_not_found(tmp_path: Path) -> None:

@@ -24,7 +24,7 @@ class GeneratorStream(httpx.AsyncByteStream):
 
 @pytest.fixture()
 def create_config(tmp_path: Path) -> Path:
-    cfg_dir = tmp_path / ".local_llm_proxy"
+    cfg_dir = tmp_path / ".prompt_passage"
     cfg_dir.mkdir()
     cfg_file = cfg_dir / "config.yaml"
     cfg_data = {
@@ -45,7 +45,7 @@ def create_config(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def create_config_azcli(tmp_path: Path) -> Path:
-    cfg_dir = tmp_path / ".local_llm_proxy"
+    cfg_dir = tmp_path / ".prompt_passage"
     cfg_dir.mkdir()
     cfg_file = cfg_dir / "config.yaml"
     cfg_data = {
@@ -65,7 +65,7 @@ def test_chat_proxy_success(monkeypatch: pytest.MonkeyPatch, create_config: Path
     monkeypatch.setenv("HOME", str(create_config.parent.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "secret-token")
 
-    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
 
     httpx_mock.add_response(url="https://mock.upstream/chat/completions", json={"ok": True})
 
@@ -85,7 +85,7 @@ def test_chat_proxy_upstream_error(monkeypatch: pytest.MonkeyPatch, create_confi
     monkeypatch.setenv("HOME", str(create_config.parent.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "token")
 
-    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
 
     import httpx
 
@@ -110,8 +110,8 @@ def test_chat_proxy_azcli(monkeypatch: pytest.MonkeyPatch, create_config_azcli: 
             assert scope == "https://cognitiveservices.azure.com/.default"
             return token_obj
 
-    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
-    monkeypatch.setattr("local_llm_proxy.auth_providers.AzureCliCredential", lambda: DummyCred())
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
+    monkeypatch.setattr("prompt_passage.auth_providers.AzureCliCredential", lambda: DummyCred())
 
     httpx_mock.add_response(url="https://mock.upstream/chat/completions", json={"ok": True})
 
@@ -130,7 +130,7 @@ def test_chat_proxy_stream(monkeypatch: pytest.MonkeyPatch, create_config: Path,
     monkeypatch.setenv("HOME", str(create_config.parent.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
-    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
 
     async def gen() -> typing.AsyncIterator[bytes]:
         yield b'data: {"id":1}\n\n'
@@ -158,7 +158,7 @@ def test_chat_proxy_unknown_provider(monkeypatch: pytest.MonkeyPatch, create_con
     monkeypatch.setenv("HOME", str(create_config.parent.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
-    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
 
     with TestClient(proxy_app.app) as client:
         resp = client.post(
@@ -173,7 +173,7 @@ def test_chat_proxy_upstream_500(monkeypatch: pytest.MonkeyPatch, create_config:
     monkeypatch.setenv("HOME", str(create_config.parent.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
-    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
 
     httpx_mock.add_response(status_code=500, json={"err": 1})
     httpx_mock.add_response(status_code=500, json={"err": 1})
@@ -192,7 +192,7 @@ def test_chat_proxy_stream_upstream_error(
     monkeypatch.setenv("HOME", str(create_config.parent.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
-    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
 
     httpx_mock.add_exception(httpx.ConnectError("fail"))
 
@@ -209,7 +209,7 @@ def test_chat_proxy_stream_500(monkeypatch: pytest.MonkeyPatch, create_config: P
     monkeypatch.setenv("HOME", str(create_config.parent.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
-    proxy_app = importlib.import_module("local_llm_proxy.proxy_app")
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
 
     def make_stream() -> GeneratorStream:
         async def gen() -> typing.AsyncIterator[bytes]:
