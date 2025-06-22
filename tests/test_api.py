@@ -57,6 +57,26 @@ def create_config_azcli(tmp_path: Path) -> Path:
     return cfg_file
 
 
+@pytest.fixture()
+def create_config_service_auth(tmp_path: Path) -> Path:
+    cfg_file = tmp_path / ".prompt-passage.yaml"
+    cfg_data = {
+        "service": {"auth": {"type": "apikey", "key": "svc-key"}},
+        "providers": {
+            "test-model": {
+                "endpoint": "https://mock.upstream/chat/completions",
+                "model": "remote-model",
+                "auth": {
+                    "type": "apikey",
+                    "envKey": "TEST_API_KEY_ENV",
+                },
+            }
+        },
+    }
+    cfg_file.write_text(yaml.dump(cfg_data))
+    return cfg_file
+
+
 def test_chat_proxy_success(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
     monkeypatch.setenv("HOME", str(create_config.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "secret-token")
@@ -225,3 +245,37 @@ def test_chat_proxy_stream_500(monkeypatch: pytest.MonkeyPatch, create_config: P
             list(resp.iter_bytes())
 
         assert resp.status_code == 500
+
+
+def test_service_auth_valid(
+    monkeypatch: pytest.MonkeyPatch, create_config_service_auth: Path, httpx_mock: HTTPXMock
+) -> None:
+    monkeypatch.setenv("HOME", str(create_config_service_auth.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
+
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
+
+    httpx_mock.add_response(url="https://mock.upstream/chat/completions", json={"ok": True})
+
+    with TestClient(proxy_app.app) as client:
+        resp = client.post(
+            "/provider/test-model/chat/completions",
+            json={"messages": [{"role": "user", "content": "hi"}]},
+            headers={"Authorization": "Bearer svc-key"},
+        )
+        assert resp.status_code == 200
+
+
+def test_service_auth_invalid(monkeypatch: pytest.MonkeyPatch, create_config_service_auth: Path) -> None:
+    monkeypatch.setenv("HOME", str(create_config_service_auth.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
+
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
+
+    with TestClient(proxy_app.app) as client:
+        resp = client.post(
+            "/provider/test-model/chat/completions",
+            json={"messages": [{"role": "user", "content": "hi"}]},
+        )
+        assert resp.status_code == 401
+        assert resp.json() == {"error": "Unauthorized"}
