@@ -1,6 +1,6 @@
 [project]
 name = "prompt-passage"
-version = "0.0.1"
+version = "0.0.2"
 description = "A local proxy for LLMs, providing a unified interface for multiple models and support for identity based authentication."
 readme = "README.md"
 requires-python = ">=3.12"
