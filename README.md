@@ -1,12 +1,15 @@
-# local-llm-proxy
+# Prompt Passage
 
-Proxy local LLM calls to Azure
-
+A local proxy for LLMs, providing a unified interface for multiple models and support for identity based authentication.
 
 ## Example config
 
 ```yaml
-port: 8095
+service:
+  port: 8095
+  auth:
+    type: apikey
+    key: localkey
 providers:
   azure-o4-mini-env:
     endpoint: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"
