@@ -32,7 +32,7 @@ def _pretty(data: bytes) -> str:
     return json.dumps(obj, indent=2, ensure_ascii=False)
 
 
-app = FastAPI(title="LLM Proxy", version="1.0.0")
+app = FastAPI(title="Prompt Passage", version="1.0.0")
 
 _provider_map: Dict[str, ProviderCfg] = {}
 _forwarder: Forwarder | None = None
