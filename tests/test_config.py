@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from prompt_passage.config import load_config, parse_config
 from prompt_passage.auth_providers import ApiKeyProvider, AzureCliProvider
+from prompt_passage.config import default_config_path
 
 
 def test_load_config_file_not_found(tmp_path: Path) -> None:
@@ -98,3 +99,77 @@ def test_parse_config_apikey_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     cfg = parse_config(raw)
     auth = cfg.providers["p1"].auth
     assert isinstance(auth.provider, ApiKeyProvider)
+
+
+def test_parse_config_service_section() -> None:
+    raw = {
+        "service": {"port": 1234, "auth": {"type": "apikey", "key": "tok"}},
+        "providers": {
+            "p1": {
+                "endpoint": "https://example.com",
+                "model": "m",
+                "auth": {"type": "apikey", "key": "k"},
+            }
+        },
+    }
+    cfg = parse_config(raw)
+    assert cfg.service is not None
+    assert cfg.service.port == 1234
+    assert cfg.service.auth is not None
+    assert cfg.service.auth.key == "tok"
+
+
+def test_parse_config_service_auth_missing_key() -> None:
+    raw = {
+        "service": {"auth": {"type": "apikey", "key": ""}},
+        "providers": {
+            "p1": {
+                "endpoint": "https://example.com",
+                "model": "m",
+                "auth": {"type": "apikey", "key": "k"},
+            }
+        },
+    }
+    with pytest.raises(ValidationError):
+        parse_config(raw)
+
+
+def test_parse_config_service_missing() -> None:
+    raw = {
+        "providers": {
+            "p1": {
+                "endpoint": "https://example.com",
+                "model": "m",
+                "auth": {"type": "apikey", "key": "k"},
+            }
+        },
+    }
+    cfg = parse_config(raw)
+    assert cfg.service is None
+
+
+def test_parse_config_service_port_default() -> None:
+    raw = {
+        "service": {"auth": {"type": "apikey", "key": "token"}},
+        "providers": {
+            "p1": {
+                "endpoint": "https://example.com",
+                "model": "m",
+                "auth": {"type": "apikey", "key": "k"},
+            }
+        },
+    }
+    cfg = parse_config(raw)
+    assert cfg.service is not None
+    assert cfg.service.port == 8095
+
+
+def test_default_config_path_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PROMPT_PASSAGE_CONFIG_PATH", "/tmp/custom.yaml")
+    assert default_config_path() == Path("/tmp/custom.yaml")
+
+
+def test_default_config_path_home(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PROMPT_PASSAGE_CONFIG_PATH", raising=False)
+    monkeypatch.setenv("HOME", "/tmp/home")
+    assert default_config_path() == Path("/tmp/home/.prompt-passage.yaml")

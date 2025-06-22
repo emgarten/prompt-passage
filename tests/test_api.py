@@ -24,9 +24,7 @@ class GeneratorStream(httpx.AsyncByteStream):
 
 @pytest.fixture()
 def create_config(tmp_path: Path) -> Path:
-    cfg_dir = tmp_path / ".prompt_passage"
-    cfg_dir.mkdir()
-    cfg_file = cfg_dir / "config.yaml"
+    cfg_file = tmp_path / ".prompt-passage.yaml"
     cfg_data = {
         "providers": {
             "test-model": {
@@ -45,9 +43,7 @@ def create_config(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def create_config_azcli(tmp_path: Path) -> Path:
-    cfg_dir = tmp_path / ".prompt_passage"
-    cfg_dir.mkdir()
-    cfg_file = cfg_dir / "config.yaml"
+    cfg_file = tmp_path / ".prompt-passage.yaml"
     cfg_data = {
         "providers": {
             "test-model": {
@@ -62,7 +58,7 @@ def create_config_azcli(tmp_path: Path) -> Path:
 
 
 def test_chat_proxy_success(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
-    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("HOME", str(create_config.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "secret-token")
 
     proxy_app = importlib.import_module("prompt_passage.proxy_app")
@@ -82,7 +78,7 @@ def test_chat_proxy_success(monkeypatch: pytest.MonkeyPatch, create_config: Path
 
 
 def test_chat_proxy_upstream_error(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
-    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("HOME", str(create_config.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "token")
 
     proxy_app = importlib.import_module("prompt_passage.proxy_app")
@@ -101,7 +97,7 @@ def test_chat_proxy_upstream_error(monkeypatch: pytest.MonkeyPatch, create_confi
 
 
 def test_chat_proxy_azcli(monkeypatch: pytest.MonkeyPatch, create_config_azcli: Path, httpx_mock: HTTPXMock) -> None:
-    monkeypatch.setenv("HOME", str(create_config_azcli.parent.parent))
+    monkeypatch.setenv("HOME", str(create_config_azcli.parent))
 
     token_obj = type("Tok", (), {"token": "cli-token"})()
 
@@ -127,7 +123,7 @@ def test_chat_proxy_azcli(monkeypatch: pytest.MonkeyPatch, create_config_azcli: 
 
 
 def test_chat_proxy_stream(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
-    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("HOME", str(create_config.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
     proxy_app = importlib.import_module("prompt_passage.proxy_app")
@@ -155,7 +151,7 @@ def test_chat_proxy_stream(monkeypatch: pytest.MonkeyPatch, create_config: Path,
 
 
 def test_chat_proxy_unknown_provider(monkeypatch: pytest.MonkeyPatch, create_config: Path) -> None:
-    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("HOME", str(create_config.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
     proxy_app = importlib.import_module("prompt_passage.proxy_app")
@@ -170,7 +166,7 @@ def test_chat_proxy_unknown_provider(monkeypatch: pytest.MonkeyPatch, create_con
 
 
 def test_chat_proxy_upstream_500(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
-    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("HOME", str(create_config.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
     proxy_app = importlib.import_module("prompt_passage.proxy_app")
@@ -189,7 +185,7 @@ def test_chat_proxy_upstream_500(monkeypatch: pytest.MonkeyPatch, create_config:
 def test_chat_proxy_stream_upstream_error(
     monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock
 ) -> None:
-    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("HOME", str(create_config.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
     proxy_app = importlib.import_module("prompt_passage.proxy_app")
@@ -206,7 +202,7 @@ def test_chat_proxy_stream_upstream_error(
 
 
 def test_chat_proxy_stream_500(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
-    monkeypatch.setenv("HOME", str(create_config.parent.parent))
+    monkeypatch.setenv("HOME", str(create_config.parent))
     monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
 
     proxy_app = importlib.import_module("prompt_passage.proxy_app")
