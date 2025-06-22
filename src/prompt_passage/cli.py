@@ -1,15 +1,37 @@
+import argparse
+import os
 import uvicorn
+import logging
 
 from .proxy_app import app
 from .config import load_config, default_config_path, ServiceCfg
 
 
 def main() -> None:
-    config_path = default_config_path()
-    try:
-        cfg = load_config(config_path)
-    except Exception:
-        cfg = None
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="")
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=8095)
+    parser.add_argument("--workers", type=int, default=1)
+    args = parser.parse_args()
 
+    config_path = default_config_path()
+    if args.config:
+        # Use the provided config path if specified
+        config_path = args.config
+
+    if not os.path.exists(config_path):
+        logging.error(f"Configuration file '{config_path}' does not exist.")
+        exit(1)
+
+    cfg = load_config(config_path)
     port = cfg.service.port if cfg and cfg.service else ServiceCfg().port
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    if args.port:
+        # Override port from command line argument if provided
+        port = args.port
+
+    uvicorn.run(app, host=args.host, port=port, workers=args.workers)
+
+
+if __name__ == "__main__":
+    main()
