@@ -8,10 +8,9 @@ from uvicorn.logging import DefaultFormatter
 from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import StreamingResponse
 from starlette.background import BackgroundTask
-from pathlib import Path
 import json
 
-from .config import load_config, ProviderCfg
+from .config import load_config, ProviderCfg, default_config_path
 from .forwarder import Forwarder
 
 _handler = logging.StreamHandler()
@@ -43,7 +42,7 @@ _forwarder: Forwarder | None = None
 async def _startup() -> None:
     global _provider_map, _forwarder  # noqa: PLW0603
 
-    config_path = Path.home() / ".prompt_passage" / "config.yaml"
+    config_path = default_config_path()
     _provider_map = load_config(config_path).providers
     _forwarder = Forwarder(_provider_map)
 

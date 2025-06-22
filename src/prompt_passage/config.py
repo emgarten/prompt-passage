@@ -24,6 +24,14 @@ from pydantic import (
 from .auth_providers import ApiKeyProvider, AzureCliProvider, TokenProvider
 
 
+def default_config_path() -> Path:
+    """Return the default user configuration file path."""
+    override = os.getenv("PROMPT_PASSAGE_CONFIG_PATH")
+    if override:
+        return Path(override)
+    return Path.home() / ".prompt-passage.yaml"
+
+
 class AuthConfig(BaseModel):
     """Authentication configuration for a provider."""
 
@@ -111,10 +119,32 @@ class DefaultsCfg(BaseModel):
     provider: str
 
 
+class ServiceAuthCfg(BaseModel):
+    """Authentication configuration for the proxy service itself."""
+
+    type: Literal["apikey"]
+    key: str
+
+    @field_validator("key")
+    @classmethod
+    def _key_not_empty(cls, v: str) -> str:
+        if not v:
+            raise ValueError("Service auth 'key' must not be empty")
+        return v
+
+
+class ServiceCfg(BaseModel):
+    """Configuration for the running proxy service."""
+
+    port: int = 8095
+    auth: ServiceAuthCfg | None = None
+
+
 class RootConfig(BaseModel):
     """Root configuration model."""
 
     defaults: DefaultsCfg | None = None
+    service: ServiceCfg | None = None
     providers: Dict[str, ProviderCfg]
 
     @field_validator("providers")
