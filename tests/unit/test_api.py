@@ -127,7 +127,7 @@ def test_chat_proxy_azure(monkeypatch: pytest.MonkeyPatch, create_config_azure: 
             return token_obj
 
     proxy_app = importlib.import_module("prompt_passage.proxy_app")
-    monkeypatch.setattr("prompt_passage.auth_providers.AzureCliCredential", lambda: DummyCred())
+    monkeypatch.setattr("prompt_passage.auth_providers.DefaultAzureCredential", lambda: DummyCred())
 
     httpx_mock.add_response(url="https://mock.upstream/chat/completions", json={"ok": True})
 
