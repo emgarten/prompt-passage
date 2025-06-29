@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict, AsyncIterator
+from contextlib import asynccontextmanager
 
 import httpx
 import logging
@@ -32,15 +33,9 @@ def _pretty(data: bytes) -> str:
     return json.dumps(obj, indent=2, ensure_ascii=False)
 
 
-app = FastAPI(title="Prompt Passage", version="1.0.0")
-
-_provider_map: Dict[str, ProviderCfg] = {}
-_forwarder: Forwarder | None = None
-_service_auth_key: str | None = None
-
-
-@app.on_event("startup")
-async def _startup() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Startup
     global _provider_map, _forwarder, _service_auth_key  # noqa: PLW0603
 
     config_path = default_config_path()
@@ -53,11 +48,18 @@ async def _startup() -> None:
     for name, cfg in _provider_map.items():
         logger.info(f"  - {name}")
 
+    yield
 
-@app.on_event("shutdown")
-async def _shutdown() -> None:
+    # Shutdown
     if _forwarder:
         await _forwarder.aclose()
+
+
+app = FastAPI(title="Prompt Passage", version="1.0.0", lifespan=lifespan)
+
+_provider_map: Dict[str, ProviderCfg] = {}
+_forwarder: Forwarder | None = None
+_service_auth_key: str | None = None
 
 
 @app.post("/provider/{provider}/chat/completions")
