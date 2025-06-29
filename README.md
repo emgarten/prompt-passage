@@ -42,3 +42,30 @@ make install
 # Lint and type check
 make check
 ```
+## Docker
+
+Build the container image:
+
+```bash
+docker build -t prompt-passage .
+```
+
+Run the proxy with your configuration file mounted:
+
+```bash
+docker run -p 8095:8095 \
+  -v $(pwd)/models.yaml:/etc/prompt-passage.yaml \
+  prompt-passage
+```
+
+When using the `azcli` authentication method, mount your Azure CLI credentials directory:
+
+```bash
+docker run -p 8095:8095 \
+  -v $(pwd)/models.yaml:/etc/prompt-passage.yaml \
+  -v ~/.azure:/root/.azure \
+  prompt-passage
+```
+
+The container automatically executes `llm-proxy` and reads its configuration from `/etc/prompt-passage.yaml`. Mount a different file or set the `PROMPT_PASSAGE_CONFIG_PATH` environment variable to change the location.
+
