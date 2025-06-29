@@ -2,7 +2,7 @@
 
 # add a provider to to your config named 'test'
 
-curl -X POST "http://localhost:8000/provider/test/chat/completions" \
+curl -X POST "http://localhost:8095/provider/test/chat/completions" \
     -H "Content-Type: application/json" \
     -d '{
         "messages": [

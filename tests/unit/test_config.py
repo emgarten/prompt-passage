@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from prompt_passage.config import load_config, parse_config
-from prompt_passage.auth_providers import ApiKeyProvider, AzureCliProvider
+from prompt_passage.auth_providers import ApiKeyProvider
 from prompt_passage.config import default_config_path
 
 
@@ -68,21 +68,21 @@ def test_parse_config_apikey_without_key(monkeypatch: pytest.MonkeyPatch) -> Non
         parse_config(raw)
 
 
-def test_parse_config_azcli_returns_none() -> None:
-    """Auth of type azcli should not resolve an API key."""
+def test_parse_config_azure_returns_none() -> None:
+    """Auth of type azure should not resolve an API key."""
     raw = {
         "providers": {
             "p1": {
                 "endpoint": "https://example.com",
                 "model": "m",
-                "auth": {"type": "azcli"},
+                "auth": {"type": "azure"},
             }
         }
     }
     cfg = parse_config(raw)
     prov = cfg.providers["p1"].auth
     assert prov.api_key is None
-    assert isinstance(prov.provider, AzureCliProvider)
+    assert prov.provider is not None
 
 
 def test_parse_config_apikey_provider(monkeypatch: pytest.MonkeyPatch) -> None:

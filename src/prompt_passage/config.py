@@ -35,7 +35,7 @@ def default_config_path() -> Path:
 class AuthConfig(BaseModel):
     """Authentication configuration for a provider."""
 
-    type: Literal["apikey", "azcli"]
+    type: Literal["apikey", "azure"]
     envKey: str | None = None
     key: str | None = None
     _resolved_api_key: str | None = PrivateAttr(None)
@@ -55,13 +55,13 @@ class AuthConfig(BaseModel):
                 self._resolved_api_key = token_from_env
             else:
                 raise ValueError("For apikey auth, either 'key' or 'envKey' must be provided.")
-        elif self.type == "azcli":
-            # For 'azcli', the token is expected to be handled externally (e.g., via Azure CLI login).
-            # This configuration model does not resolve a token for 'azcli'.
-            # Warn if key/envKey are provided for azcli, as they are not used by this model.
+        elif self.type == "azure":
+            # For 'azure', the token is expected to be handled externally (e.g., via Azure CLI login).
+            # This configuration model does not resolve a token for 'azure'.
+            # Warn if key/envKey are provided for azure, as they are not used by this model.
             if self.key is not None or self.envKey is not None:
                 # Consider logging a warning here if a logger is available
-                # print("Warning: 'key' or 'envKey' are provided for 'azcli' auth type but will not be used for API key resolution by this model.")
+                # print("Warning: 'key' or 'envKey' are provided for 'azure' auth type but will not be used for API key resolution by this model.")
                 pass
         # Instantiate token provider after validation
         self._token_provider = self._build_provider()
@@ -71,7 +71,7 @@ class AuthConfig(BaseModel):
     def api_key(self) -> str | None:
         """
         Returns the resolved API key if auth type is 'apikey'.
-        Returns None for 'azcli' as this model doesn't handle its token.
+        Returns None for 'azure' as this model doesn't handle its token.
         """
         if self.type == "apikey":
             # This should be set by _resolve_and_validate_auth if type is apikey

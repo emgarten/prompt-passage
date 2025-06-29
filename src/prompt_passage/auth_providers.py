@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from azure.identity import AzureCliCredential
+from azure.identity import DefaultAzureCredential
 from azure.core.credentials import AccessToken
 
 
@@ -32,7 +32,7 @@ class AzureCliProvider(TokenProvider):
     _SCOPE = "https://cognitiveservices.azure.com/.default"
 
     def __init__(self) -> None:
-        self._credential = AzureCliCredential()
+        self._credential = DefaultAzureCredential()
 
     def get_token(self) -> str:
         access_token: AccessToken = self._credential.get_token(self._SCOPE)
