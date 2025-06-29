@@ -1,7 +1,8 @@
 import argparse
-import os
-import uvicorn
 import logging
+import os
+from typing import Any
+import uvicorn
 
 from .proxy_app import app
 from .config import load_config, default_config_path, ServiceCfg
@@ -32,7 +33,23 @@ def main() -> None:
         # Override port from command line argument if provided
         port = args.port
 
-    uvicorn.run(app, host=args.host, port=port, workers=args.workers)
+    certfile = os.getenv("PROMPT_PASSAGE_CERTFILE")
+    keyfile = os.getenv("PROMPT_PASSAGE_KEYFILE")
+    ca_certs = os.getenv("PROMPT_PASSAGE_CA_CERTS")
+
+    uvicorn_kwargs: dict[str, Any] = {
+        "host": args.host,
+        "port": port,
+        "workers": args.workers,
+    }
+    if certfile:
+        uvicorn_kwargs["ssl_certfile"] = certfile
+    if keyfile:
+        uvicorn_kwargs["ssl_keyfile"] = keyfile
+    if ca_certs:
+        uvicorn_kwargs["ssl_ca_certs"] = ca_certs
+
+    uvicorn.run(app, **uvicorn_kwargs)
 
 
 if __name__ == "__main__":

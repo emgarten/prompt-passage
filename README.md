@@ -71,3 +71,18 @@ services:
       - AZURE_OPENAI_API_KEY  # include any env vars used in the config
 ```
 
+## HTTPS
+
+To serve the API over HTTPS, set `PROMPT_PASSAGE_CERTFILE` and optionally
+define `PROMPT_PASSAGE_KEYFILE` and `PROMPT_PASSAGE_CA_CERTS` for the
+private key and CA bundle:
+
+Example:
+
+```bash
+PROMPT_PASSAGE_CERTFILE=/path/server.crt \
+PROMPT_PASSAGE_KEYFILE=/path/server.key \
+PROMPT_PASSAGE_CA_CERTS=/path/ca.pem \
+python -m prompt_passage.cli
+```
+
