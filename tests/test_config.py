@@ -68,14 +68,14 @@ def test_parse_config_apikey_without_key(monkeypatch: pytest.MonkeyPatch) -> Non
         parse_config(raw)
 
 
-def test_parse_config_azcli_returns_none() -> None:
-    """Auth of type azcli should not resolve an API key."""
+def test_parse_config_azure_returns_none() -> None:
+    """Auth of type azure should not resolve an API key."""
     raw = {
         "providers": {
             "p1": {
                 "endpoint": "https://example.com",
                 "model": "m",
-                "auth": {"type": "azcli"},
+                "auth": {"type": "azure"},
             }
         }
     }

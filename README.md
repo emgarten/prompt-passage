@@ -23,11 +23,11 @@ providers:
     auth:
       type: apikey
       key: djjskskskkkk
-  azure-o4-mini-azcli:
+  azure-o4-mini-azure:
     endpoint: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"
     model: o4-mini
     auth:
-      type: azcli
+      type: azure
 ```
 
 ## Dev environment setup

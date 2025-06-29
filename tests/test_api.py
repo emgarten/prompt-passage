@@ -42,14 +42,14 @@ def create_config(tmp_path: Path) -> Path:
 
 
 @pytest.fixture()
-def create_config_azcli(tmp_path: Path) -> Path:
+def create_config_azure(tmp_path: Path) -> Path:
     cfg_file = tmp_path / ".prompt-passage.yaml"
     cfg_data = {
         "providers": {
             "test-model": {
                 "endpoint": "https://mock.upstream/chat/completions",
                 "model": "remote-model",
-                "auth": {"type": "azcli"},
+                "auth": {"type": "azure"},
             }
         }
     }
@@ -116,8 +116,8 @@ def test_chat_proxy_upstream_error(monkeypatch: pytest.MonkeyPatch, create_confi
         assert resp.json() == {"error": "Upstream failure"}
 
 
-def test_chat_proxy_azcli(monkeypatch: pytest.MonkeyPatch, create_config_azcli: Path, httpx_mock: HTTPXMock) -> None:
-    monkeypatch.setenv("HOME", str(create_config_azcli.parent))
+def test_chat_proxy_azure(monkeypatch: pytest.MonkeyPatch, create_config_azure: Path, httpx_mock: HTTPXMock) -> None:
+    monkeypatch.setenv("HOME", str(create_config_azure.parent))
 
     token_obj = type("Tok", (), {"token": "cli-token"})()
 
