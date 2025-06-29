@@ -50,22 +50,24 @@ Build the container image:
 docker build -t prompt-passage .
 ```
 
-Run the proxy with your configuration file mounted:
+When using the `azure` authentication method, mount your Azure CLI credentials directory:
 
 ```bash
-docker run -p 8095:8095 \
-  -v $(pwd)/models.yaml:/etc/prompt-passage.yaml \
-  prompt-passage
+docker run -p 8095:8095 -v ~/.prompt-passage.yaml:/etc/prompt-passage.yaml -v ~/.azure:/root/.azure -e AZURE_OPENAI_API_KEY prompt-passage
 ```
 
-When using the `azcli` authentication method, mount your Azure CLI credentials directory:
+Docker compose
 
-```bash
-docker run -p 8095:8095 \
-  -v $(pwd)/models.yaml:/etc/prompt-passage.yaml \
-  -v ~/.azure:/root/.azure \
-  prompt-passage
+```yaml
+services:
+  prompt-passage:
+    image: prompt-passage
+    ports:
+      - "8095:8095"
+    volumes:
+      - ~/.prompt-passage.yaml:/etc/prompt-passage.yaml  # mount config file
+      - ~/.azure:/root/.azure # mount azure cli credentials if needed
+    environment:
+      - AZURE_OPENAI_API_KEY  # include any env vars used in the config
 ```
-
-The container automatically executes `llm-proxy` and reads its configuration from `/etc/prompt-passage.yaml`. Mount a different file or set the `PROMPT_PASSAGE_CONFIG_PATH` environment variable to change the location.
 

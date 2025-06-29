@@ -23,6 +23,8 @@ def main() -> None:
     if not os.path.exists(config_path):
         logging.error(f"Configuration file '{config_path}' does not exist.")
         exit(1)
+    else:
+        logging.info(f"Using configuration file: {config_path}")
 
     cfg = load_config(config_path)
     port = cfg.service.port if cfg and cfg.service else ServiceCfg().port

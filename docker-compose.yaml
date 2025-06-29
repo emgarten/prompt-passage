@@ -1,0 +1,10 @@
+services:
+  prompt-passage:
+    image: prompt-passage
+    ports:
+      - "8095:8095"
+    volumes:
+      - ~/.prompt-passage.yaml:/etc/prompt-passage.yaml  # mount config file
+      - ~/.azure:/root/.azure # mount azure cli credentials if needed
+    environment:
+      - AZURE_OPENAI_API_KEY  # include any env vars used in the config
