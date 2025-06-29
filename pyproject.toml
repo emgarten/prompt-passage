@@ -55,4 +55,4 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-llm-proxy = "src.prompt_passage.cli:main"
+prompt-passage = "prompt_passage.cli:main"
