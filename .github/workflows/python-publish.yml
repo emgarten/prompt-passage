@@ -22,6 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set package version
+        run: |
+          sed -i -E 's/^version = ".*"/version = "${{ github.event.release.tag_name }}"/' pyproject.toml
+
       # Install uv (fast dependency manager) and add it to PATH
       - name: Install uv
         uses: astral-sh/setup-uv@v6   # caches uv automatically when the job re-runs
