@@ -2,7 +2,11 @@
 
 A local proxy for LLMs, providing a unified interface for multiple models and support for identity based authentication.
 
-## Example config
+## Getting started
+
+First create your ~/.prompt-passage.yaml file and configure your providers:
+
+### Example config
 
 ```yaml
 service:
@@ -29,6 +33,26 @@ providers:
     auth:
       type: azure
 ```
+
+### Running prompt-passage
+
+Run prompt-passage to start the local proxy
+
+```bash
+# Run az login if using azure credentials
+
+# Run prompt passage
+pipx run prompt-passage
+```
+
+### Connecting
+
+Use `OpenAI compatible`, `Azure OpenAI`, or similar option from the tool you are trying to connect with.
+
+Base url: `http://localhost:8095/providers/{your provider name}/`
+
+API token can be any value unless auth is enabled.
+
 
 ## Dev environment setup
 
