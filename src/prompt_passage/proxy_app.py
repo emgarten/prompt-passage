@@ -62,9 +62,21 @@ _forwarder: Forwarder | None = None
 _service_auth_key: str | None = None
 
 
+@app.post("/provider/{provider}/openai/deployments/{model}/chat/completions")
+async def chat_proxy_oai_deployment(provider: str, model: str, request: Request) -> Response:
+    """Proxy for chat completions to the specified provider with deployment path."""
+    return await chat_proxy(provider, request)
+
+
 @app.post("/provider/{provider}/deployments/{model}/chat/completions")
 async def chat_proxy_deployment(provider: str, model: str, request: Request) -> Response:
     """Proxy for chat completions to the specified provider with deployment path."""
+    return await chat_proxy(provider, request)
+
+
+@app.post("/provider/{provider}/{subpath:path}/chat/completions")
+async def chat_proxy_wildcard(provider: str, subpath: str, request: Request) -> Response:
+    """Proxy for chat completions to the specified provider with flexible subpath routing."""
     return await chat_proxy(provider, request)
 
 
