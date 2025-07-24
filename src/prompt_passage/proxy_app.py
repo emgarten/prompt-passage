@@ -74,6 +74,12 @@ async def chat_proxy_deployment(provider: str, model: str, request: Request) -> 
     return await chat_proxy(provider, request)
 
 
+@app.post("/provider/{provider}/{subpath:path}/chat/completions")
+async def chat_proxy_wildcard(provider: str, subpath: str, request: Request) -> Response:
+    """Proxy for chat completions to the specified provider with deployment path."""
+    return await chat_proxy(provider, request)
+
+
 @app.post("/provider/{provider}/chat/completions")
 async def chat_proxy(provider: str, request: Request) -> Response:
     if _service_auth_key is not None:
