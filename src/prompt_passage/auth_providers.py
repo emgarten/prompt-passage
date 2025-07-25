@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from azure.identity import DefaultAzureCredential
+import logging
+
+from azure.identity import (
+    DefaultAzureCredential,
+    CredentialUnavailableError,
+)
 from azure.core.credentials import AccessToken
+from azure.core.exceptions import ClientAuthenticationError
 
 
 class TokenProvider(ABC):
@@ -35,5 +41,12 @@ class AzureCliProvider(TokenProvider):
         self._credential = DefaultAzureCredential()
 
     def get_token(self) -> str:
-        access_token: AccessToken = self._credential.get_token(self._SCOPE)
+        try:
+            access_token: AccessToken = self._credential.get_token(self._SCOPE)
+        except (CredentialUnavailableError, ClientAuthenticationError):
+            logging.error("=" * 60)
+            logging.error("Azure credentials required. Please run 'az login'.")
+            logging.error("=" * 60)
+            raise
+
         return access_token.token
