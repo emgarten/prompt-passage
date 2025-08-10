@@ -86,7 +86,7 @@ def create_config_transform(tmp_path: Path) -> Path:
             "test-transform": {
                 "endpoint": "https://mock.upstream/chat/completions",
                 "model": "remote-model",
-                "transform": ".messages as $m | .inputs=$m | del(.messages)",
+                "transform": ".messages as $m | .input=$m | del(.messages)",
                 "auth": {
                     "type": "apikey",
                     "envKey": "TEST_API_KEY_ENV",
@@ -213,7 +213,7 @@ def test_chat_proxy_transform(
     data = json.loads(req.content.decode("utf-8"))
     assert data == {
         "model": "remote-model",
-        "inputs": [{"role": "user", "content": "hi"}],
+        "input": [{"role": "user", "content": "hi"}],
     }
     sys.modules.pop("prompt_passage.proxy_app", None)
 

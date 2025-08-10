@@ -108,14 +108,14 @@ def test_parse_config_transform() -> None:
                 "endpoint": "https://example.com",
                 "model": "m",
                 "auth": {"type": "apikey", "key": "k"},
-                "transform": ".messages as $m | .inputs=$m | del(.messages)",
+                "transform": ".messages as $m | .input=$m | del(.messages)",
             }
         }
     }
     cfg = parse_config(raw)
     prov = cfg.providers["p1"]
     transformed = prov.apply_transform({"model": "m", "messages": [1]})
-    assert "inputs" in transformed and "messages" not in transformed
+    assert "input" in transformed and "messages" not in transformed
 
 
 def test_parse_config_service_section() -> None:
