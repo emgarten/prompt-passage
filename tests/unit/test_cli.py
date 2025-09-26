@@ -8,7 +8,7 @@ def _create_basic_config(path: Path) -> None:
     cfg = {
         "providers": {
             "p": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "key": "k"},
             }

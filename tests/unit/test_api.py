@@ -29,7 +29,7 @@ def create_config(tmp_path: Path) -> Path:
     cfg_data = {
         "providers": {
             "test-model": {
-                "endpoint": "https://mock.upstream/chat/completions",
+                "endpoints": {"base_url": "https://mock.upstream"},
                 "model": "remote-model",
                 "auth": {
                     "type": "apikey",
@@ -48,7 +48,7 @@ def create_config_azure(tmp_path: Path) -> Path:
     cfg_data = {
         "providers": {
             "test-model": {
-                "endpoint": "https://mock.upstream/chat/completions",
+                "endpoints": {"base_url": "https://mock.upstream"},
                 "model": "remote-model",
                 "auth": {"type": "azure"},
             }
@@ -65,7 +65,7 @@ def create_config_service_auth(tmp_path: Path) -> Path:
         "service": {"auth": {"type": "apikey", "key": "svc-key"}},
         "providers": {
             "test-model": {
-                "endpoint": "https://mock.upstream/chat/completions",
+                "endpoints": {"base_url": "https://mock.upstream"},
                 "model": "remote-model",
                 "auth": {
                     "type": "apikey",
@@ -84,7 +84,7 @@ def create_config_transform(tmp_path: Path) -> Path:
     cfg_data = {
         "providers": {
             "test-transform": {
-                "endpoint": "https://mock.upstream/chat/completions",
+                "endpoints": {"base_url": "https://mock.upstream"},
                 "model": "remote-model",
                 "transform": ".messages as $m | .input=$m | del(.messages)",
                 "auth": {
@@ -109,13 +109,15 @@ def test_chat_proxy_success(monkeypatch: pytest.MonkeyPatch, create_config: Path
     with TestClient(proxy_app.app) as client:
         resp = client.post(
             "/provider/test-model/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}]},
+            json={"messages": [{"role": "user", "content": "hi"}], "model": "local-model"},
         )
         assert resp.status_code == 200
         assert resp.json() == {"ok": True}
 
     req = httpx_mock.get_requests()[0]
     assert req.headers["Authorization"] == "Bearer secret-token"
+    sent = json.loads(req.content.decode("utf-8"))
+    assert sent["model"] == "remote-model"
 
 
 def test_chat_proxy_upstream_error(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
@@ -131,7 +133,7 @@ def test_chat_proxy_upstream_error(monkeypatch: pytest.MonkeyPatch, create_confi
     with TestClient(proxy_app.app) as client:
         resp = client.post(
             "/provider/test-model/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}]},
+            json={"messages": [{"role": "user", "content": "hi"}], "model": "local-model"},
         )
         assert resp.status_code == 502
         assert resp.json() == {"error": "Upstream failure"}
@@ -155,7 +157,7 @@ def test_chat_proxy_azure(monkeypatch: pytest.MonkeyPatch, create_config_azure: 
     with TestClient(proxy_app.app) as client:
         resp = client.post(
             "/provider/test-model/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}]},
+            json={"messages": [{"role": "user", "content": "hi"}], "model": "local-model"},
         )
         assert resp.status_code == 200
 
@@ -184,7 +186,11 @@ def test_chat_proxy_stream(monkeypatch: pytest.MonkeyPatch, create_config: Path,
         with client.stream(
             "POST",
             "/provider/test-model/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}], "stream": True},
+            json={
+                "messages": [{"role": "user", "content": "hi"}],
+                "model": "local-model",
+                "stream": True,
+            },
         ) as resp:
             chunks = list(resp.iter_bytes())
 
@@ -205,7 +211,7 @@ def test_chat_proxy_transform(
     with TestClient(proxy_app.app) as client:
         resp = client.post(
             "/provider/test-transform/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}]},
+            json={"messages": [{"role": "user", "content": "hi"}], "model": "local-model"},
         )
         assert resp.status_code == 200
 
@@ -227,7 +233,7 @@ def test_chat_proxy_unknown_provider(monkeypatch: pytest.MonkeyPatch, create_con
     with TestClient(proxy_app.app) as client:
         resp = client.post(
             "/provider/missing/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}]},
+            json={"messages": [{"role": "user", "content": "hi"}], "model": "local-model"},
         )
         assert resp.status_code == 404
         assert resp.json() == {"error": "Unknown provider"}
@@ -245,7 +251,7 @@ def test_chat_proxy_upstream_500(monkeypatch: pytest.MonkeyPatch, create_config:
     with TestClient(proxy_app.app) as client:
         resp = client.post(
             "/provider/test-model/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}]},
+            json={"messages": [{"role": "user", "content": "hi"}], "model": "local-model"},
         )
         assert resp.status_code == 500
 
@@ -263,7 +269,11 @@ def test_chat_proxy_stream_upstream_error(
     with TestClient(proxy_app.app) as client:
         resp = client.post(
             "/provider/test-model/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}], "stream": True},
+            json={
+                "messages": [{"role": "user", "content": "hi"}],
+                "model": "local-model",
+                "stream": True,
+            },
         )
         assert resp.status_code == 502
         assert resp.json() == {"error": "Upstream failure"}
@@ -288,11 +298,95 @@ def test_chat_proxy_stream_500(monkeypatch: pytest.MonkeyPatch, create_config: P
         with client.stream(
             "POST",
             "/provider/test-model/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}], "stream": True},
+            json={
+                "messages": [{"role": "user", "content": "hi"}],
+                "model": "local-model",
+                "stream": True,
+            },
         ) as resp:
             list(resp.iter_bytes())
 
         assert resp.status_code == 500
+
+
+def test_responses_endpoint(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
+    monkeypatch.setenv("HOME", str(create_config.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "secret")
+
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
+    httpx_mock.add_response(url="https://mock.upstream/responses", json={"ok": True})
+
+    with TestClient(proxy_app.app) as client:
+        resp = client.post(
+            "/provider/test-model/responses?foo=bar",
+            json={"input": "hello"},
+        )
+        assert resp.status_code == 200
+
+    req = httpx_mock.get_requests()[0]
+    assert str(req.url) == "https://mock.upstream/responses"
+    payload = json.loads(req.content.decode("utf-8"))
+    assert "model" not in payload
+
+
+def test_base_path_defaults_to_chat(
+    monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock
+) -> None:
+    monkeypatch.setenv("HOME", str(create_config.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "secret")
+
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
+    httpx_mock.add_response(url="https://mock.upstream/chat/completions", json={"ok": True})
+
+    with TestClient(proxy_app.app) as client:
+        resp = client.post(
+            "/provider/test-model/?foo=bar",
+            json={"model": "local-model", "messages": []},
+        )
+        assert resp.status_code == 200
+
+    req = httpx_mock.get_requests()[0]
+    assert str(req.url) == "https://mock.upstream/chat/completions"
+
+
+def test_base_url_fallback(monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock) -> None:
+    monkeypatch.setenv("HOME", str(create_config.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
+
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
+    httpx_mock.add_response(url="https://mock.upstream/embeddings?api-version=1", json={"ok": True})
+
+    with TestClient(proxy_app.app) as client:
+        resp = client.post(
+            "/provider/test-model/embeddings?api-version=1",
+            json={"model": "local-model", "input": "text"},
+        )
+        assert resp.status_code == 200
+
+    req = httpx_mock.get_requests()[0]
+    assert str(req.url) == "https://mock.upstream/embeddings?api-version=1"
+    payload = json.loads(req.content.decode("utf-8"))
+    assert payload["model"] == "remote-model"
+
+
+def test_chat_endpoint_strips_query(
+    monkeypatch: pytest.MonkeyPatch, create_config: Path, httpx_mock: HTTPXMock
+) -> None:
+    monkeypatch.setenv("HOME", str(create_config.parent))
+    monkeypatch.setenv("TEST_API_KEY_ENV", "tok")
+
+    proxy_app = importlib.import_module("prompt_passage.proxy_app")
+    httpx_mock.add_response(url="https://mock.upstream/chat/completions", json={"ok": True})
+
+    with TestClient(proxy_app.app) as client:
+        resp = client.post(
+            "/provider/test-model/chat/completions?foo=1",
+            json={"model": "local-model", "messages": []},
+        )
+        assert resp.status_code == 200
+
+    req = httpx_mock.get_requests()[0]
+    assert str(req.url) == "https://mock.upstream/chat/completions"
 
 
 def test_service_auth_valid(
@@ -308,7 +402,7 @@ def test_service_auth_valid(
     with TestClient(proxy_app.app) as client:
         resp = client.post(
             "/provider/test-model/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}]},
+            json={"messages": [{"role": "user", "content": "hi"}], "model": "local-model"},
             headers={"Authorization": "Bearer svc-key"},
         )
         assert resp.status_code == 200
@@ -323,7 +417,7 @@ def test_service_auth_invalid(monkeypatch: pytest.MonkeyPatch, create_config_ser
     with TestClient(proxy_app.app) as client:
         resp = client.post(
             "/provider/test-model/chat/completions",
-            json={"messages": [{"role": "user", "content": "hi"}]},
+            json={"messages": [{"role": "user", "content": "hi"}], "model": "local-model"},
         )
         assert resp.status_code == 401
         assert resp.json() == {"error": "Unauthorized"}
