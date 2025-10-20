@@ -16,24 +16,60 @@ service:
     key: localkey
 providers:
   azure-o4-mini-env:
-    endpoint: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"
+    endpoints:
+      base_url: "https://{service}.cognitiveservices.azure.com/openai/v1"
+      chat: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"
+      responses: "https://{service}.cognitiveservices.azure.com/openai/v1/responses"
     model: o4-mini
     auth:
       type: apikey
       envKey: AZURE_OPENAI_API_KEY
     transform: ".messages as $m | .input=$m | del(.messages)"
   azure-o4-mini-key:
-    endpoint: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"
+    endpoints:
+      base_url: "https://{service}.cognitiveservices.azure.com/openai/v1"
+      chat: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"
     model: o4-mini
     auth:
       type: apikey
       key: djjskskskkkk
+  openai-gpt-4o-mini:
+    endpoints:
+      base_url: "https://api.openai.com/v1"
+      # chat and responses will default to "https://api.openai.com/v1/chat/completions" and
+      # "https://api.openai.com/v1/responses"
+    model: gpt-4o-mini
+    auth:
+      type: apikey
+      envKey: OPENAI_API_KEY
   azure-o4-mini-azure:
-    endpoint: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"
+    endpoints:
+      base_url: "https://{service}.cognitiveservices.azure.com/openai/v1"
+      chat: "https://{service}.cognitiveservices.azure.com/openai/deployments/o4-mini/chat/completions?api-version=2025-01-01-preview"
+      responses: "https://{service}.cognitiveservices.azure.com/openai/v1/responses"
     model: o4-mini
     auth:
       type: azure
 ```
+
+### Provider endpoints
+
+Each provider entry now declares an `endpoints` block:
+
+* `base_url` (required) – the root URL that the proxy uses when it needs to forward arbitrary
+  paths for that provider. Requests sent to the provider root (with or without a trailing slash)
+  are automatically routed to the chat completions endpoint.
+* `chat` (optional) – full URL for chat completion calls. When omitted, the proxy derives it as
+  `<base_url>/chat/completions`.
+* `responses` (optional) – full URL for the responses API. When omitted, the proxy derives it as
+  `<base_url>/responses`.
+
+Requests ending in `/chat/completions` or `/responses` are forwarded to the corresponding
+configured endpoint without passing along any incoming query parameters. Any other path is
+joined onto `base_url`, letting you access additional REST resources exposed by the provider.
+
+When either `chat` or `responses` is provided it must include any additional path segments or
+query parameters required by the upstream service (for example Azure deployments).
 
 The optional `transform` field contains a [jq](https://stedolan.github.io/jq/) expression that
 modifies the JSON body of outgoing requests. The transform runs only when the incoming body

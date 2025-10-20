@@ -62,26 +62,17 @@ _forwarder: Forwarder | None = None
 _service_auth_key: str | None = None
 
 
-@app.post("/provider/{provider}/openai/deployments/{model}/chat/completions")
-async def chat_proxy_oai_deployment(provider: str, model: str, request: Request) -> Response:
-    """Proxy for chat completions to the specified provider with deployment path."""
-    return await chat_proxy(provider, request)
+@app.post("/provider/{provider}")
+async def provider_root(provider: str, request: Request) -> Response:
+    return await proxy_request(provider, request)
 
 
-@app.post("/provider/{provider}/deployments/{model}/chat/completions")
-async def chat_proxy_deployment(provider: str, model: str, request: Request) -> Response:
-    """Proxy for chat completions to the specified provider with deployment path."""
-    return await chat_proxy(provider, request)
+@app.post("/provider/{provider}/{subpath:path}")
+async def provider_proxy(provider: str, subpath: str, request: Request) -> Response:
+    return await proxy_request(provider, request)
 
 
-@app.post("/provider/{provider}/{subpath:path}/chat/completions")
-async def chat_proxy_wildcard(provider: str, subpath: str, request: Request) -> Response:
-    """Proxy for chat completions to the specified provider with flexible subpath routing."""
-    return await chat_proxy(provider, request)
-
-
-@app.post("/provider/{provider}/chat/completions")
-async def chat_proxy(provider: str, request: Request) -> Response:
+async def proxy_request(provider: str, request: Request) -> Response:
     if _service_auth_key is not None:
         if request.headers.get("Authorization") != f"Bearer {_service_auth_key}":
             return Response(
@@ -97,7 +88,6 @@ async def chat_proxy(provider: str, request: Request) -> Response:
         )
 
     cfg = _provider_map[provider]
-    endpoint = str(cfg.endpoint)
 
     out_headers = {}
     out_headers["Content-Type"] = "application/json"
@@ -112,7 +102,8 @@ async def chat_proxy(provider: str, request: Request) -> Response:
         try:
             # Override the model to match the config
             body_json = json.loads(body_bytes.decode("utf-8"))
-            body_json["model"] = cfg.model
+            if "model" in body_json:
+                body_json["model"] = cfg.model
             stream = bool(body_json.get("stream", False))
             if cfg.transform is not None:
                 body_json = cfg.apply_transform(body_json)
@@ -121,6 +112,23 @@ async def chat_proxy(provider: str, request: Request) -> Response:
             body = body_bytes
     else:
         body = body_bytes
+
+    request_path = request.url.path
+    prefix = f"/provider/{provider}"
+    relative_path = request_path[len(prefix) :]
+    relative_path = relative_path.lstrip("/")
+    trimmed = relative_path.rstrip("/")
+
+    if not trimmed:
+        endpoint = cfg.chat_endpoint
+    elif trimmed.endswith("chat/completions"):
+        endpoint = cfg.chat_endpoint
+    elif trimmed.endswith("responses"):
+        endpoint = cfg.responses_endpoint
+    else:
+        endpoint = cfg.endpoints.join(relative_path)
+        if request.url.query:
+            endpoint = f"{endpoint}?{request.url.query}"
 
     logger.info("Forwarding request to %s", endpoint)
     logger.info("Outgoing body:\n%s", _pretty(body))

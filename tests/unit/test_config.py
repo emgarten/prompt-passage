@@ -20,7 +20,7 @@ def test_parse_config_valid_env_key(monkeypatch: pytest.MonkeyPatch) -> None:
     raw = {
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "envKey": "TEST_ENV_KEY"},
             }
@@ -36,7 +36,7 @@ def test_parse_config_missing_default_provider() -> None:
         "defaults": {"provider": "missing"},
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "key": "k"},
             }
@@ -58,7 +58,7 @@ def test_parse_config_apikey_without_key(monkeypatch: pytest.MonkeyPatch) -> Non
     raw = {
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "envKey": "MISSING"},
             }
@@ -73,7 +73,7 @@ def test_parse_config_azure_returns_none() -> None:
     raw = {
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "azure"},
             }
@@ -90,7 +90,7 @@ def test_parse_config_apikey_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     raw = {
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "envKey": "ENV"},
             }
@@ -105,7 +105,7 @@ def test_parse_config_transform() -> None:
     raw = {
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "key": "k"},
                 "transform": ".messages as $m | .input=$m | del(.messages)",
@@ -123,7 +123,7 @@ def test_parse_config_service_section() -> None:
         "service": {"port": 1234, "auth": {"type": "apikey", "key": "tok"}},
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "key": "k"},
             }
@@ -141,7 +141,7 @@ def test_parse_config_service_auth_missing_key() -> None:
         "service": {"auth": {"type": "apikey", "key": ""}},
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "key": "k"},
             }
@@ -155,7 +155,7 @@ def test_parse_config_service_missing() -> None:
     raw = {
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "key": "k"},
             }
@@ -170,7 +170,7 @@ def test_parse_config_service_port_default() -> None:
         "service": {"auth": {"type": "apikey", "key": "token"}},
         "providers": {
             "p1": {
-                "endpoint": "https://example.com",
+                "endpoints": {"base_url": "https://example.com"},
                 "model": "m",
                 "auth": {"type": "apikey", "key": "k"},
             }

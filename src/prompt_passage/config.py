@@ -95,10 +95,39 @@ class AuthConfig(BaseModel):
         return self._token_provider
 
 
+class ProviderEndpoints(BaseModel):
+    """Endpoint configuration for a provider."""
+
+    base_url: str
+    chat: str | None = None
+    responses: str | None = None
+
+    @model_validator(mode="after")
+    def _normalise_and_default(self) -> "ProviderEndpoints":
+        base = self.base_url.rstrip("/")
+        if not base:
+            raise ValueError("endpoints.base_url must not be empty")
+        self.base_url = base
+
+        if self.chat is None:
+            self.chat = f"{base}/chat/completions"
+        if self.responses is None:
+            self.responses = f"{base}/responses"
+        return self
+
+    def join(self, suffix: str) -> str:
+        """Return ``base_url`` joined with *suffix*."""
+
+        suffix = suffix.lstrip("/")
+        if not suffix:
+            return self.base_url
+        return f"{self.base_url}/{suffix}"
+
+
 class ProviderCfg(BaseModel):
     """Run-time configuration for a single provider entry."""
 
-    endpoint: str  # Endpoint URL, potentially with placeholders like {service}
+    endpoints: ProviderEndpoints
     model: str  # Name of the LLM model, e.g., "o4-mini"
     auth: AuthConfig
     transform: str | None = None
@@ -116,6 +145,22 @@ class ProviderCfg(BaseModel):
     def token_provider(self) -> TokenProvider:
         assert self._provider is not None
         return self._provider
+
+    @property
+    def chat_endpoint(self) -> str:
+        chat = self.endpoints.chat
+        assert chat is not None
+        return chat
+
+    @property
+    def responses_endpoint(self) -> str:
+        responses = self.endpoints.responses
+        assert responses is not None
+        return responses
+
+    @property
+    def base_url(self) -> str:
+        return self.endpoints.base_url
 
     def apply_transform(self, body: dict[str, Any]) -> dict[str, Any]:
         if self._transform_prog is None:
